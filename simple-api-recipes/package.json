@@ -1,0 +1,33 @@
+{
+  "name": "simple-api-recipes",
+  "version": "1.0.0",
+  "description": "Simple API for Cooking Recipes with users",
+  "main": "server.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "start-watch": "nodemon src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RoxanaYaneva/Course-Node-Express-React.git"
+  },
+  "keywords": [
+    "api",
+    "node",
+    "express",
+    "mongodb"
+  ],
+  "author": "Roxana Yaneva",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/RoxanaYaneva/Course-Node-Express-React/issues"
+  },
+  "homepage": "https://github.com/RoxanaYaneva/Course-Node-Express-React#readme",
+  "dependencies": {
+    "express": "^4.16.4"
+  },
+  "devDependencies": {
+    "nodemon": "^1.19.0"
+  }
+}
