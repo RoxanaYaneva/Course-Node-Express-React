@@ -4,7 +4,7 @@ const logger = require('morgan');
 const bodyParser = require('body-parser');
 const MongoClient = require('mongodb').MongoClient;
 
-const usersRouter = require('./routes/router');
+const router = require('./routes/router');
 
 const rootPath = path.normalize(__dirname);
 
@@ -14,8 +14,6 @@ app.set('app', path.join(rootPath, 'app'));
 app.use(logger('dev'));
 app.use(bodyParser.json({limit: '20mb'}));
 
-// app.use('/api/users', recipesRouter);
-// app.use('/api/users', usersRouter);
 app.use('/api/users', router);
 
 app.use(function(req, res, next) {
@@ -54,5 +52,5 @@ MongoClient.connect(dburl, { useNewUrlParser: true }).then( db => {
     });
 }).catch(err => { 
     console.error("Error: MongoDB not available. Check that it is started on port 27017.")
-    throw err; })
-    .finally( () => db.close() );
+    throw err
+});

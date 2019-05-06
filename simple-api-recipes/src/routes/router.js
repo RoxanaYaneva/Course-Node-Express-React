@@ -3,6 +3,7 @@ const mongodb = require('mongodb');
 const indicative = require('indicative');
 const error = require('./helpers').error;
 const replaceId = require('./helpers').replaceId;
+const currentDateAndTime = require('./helpers').currentDateAndTime;
 const util = require('util');
 
 const router = express.Router();
@@ -21,27 +22,19 @@ router.post('/', function (req, res) {
     const db = req.app.locals.db;
     const user = req.body;
     indicative.validate(user, 
-        { 
-            id: 'regex:^[0-9a-f]{24}$',
-            name: 'required|string|min:5',
+        {
+            name: 'required|string',
             username: 'required|string|min:2|max:15',
-            password: 'regex:^((?=.*\d)(?=.\W))[0-9a-zA-Z]{8,}$',
-            sex: 'regex:[m|f]',
-            role: 'regex:(user|admin)',
+            password: 'regex:^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]',
+            sex: 'regex:[mf]',
+            role: 'in:admin,user',
             imageUrl: 'url',
             description: 'string|max:512',
-            statusOfAcc: 'regex:(active|suspended|deactivated)' 
+            statusOfAcc: 'in:active,suspended,deactivated'
      })
     .then(user => {
-        var currentdate = new Date(); 
-        var datetime = currentdate.getDate() + "/"
-                + (currentdate.getMonth()+1)  + "/" 
-                + currentdate.getFullYear() + " "  
-                + currentdate.getHours() + ":"  
-                + currentdate.getMinutes() + ":" 
-                + currentdate.getSeconds();
-        user.dateOfReg = datetime;
-        user.dateOfLastChange = datetime;
+        user.dateOfReg = currentDateAndTime();
+        user.dateOfLastChange = user.dateOfReg;
         console.log("Inserting user: ", user);
         db.collection('users').insertOne(user).then(result => {
             if(result.result.ok && result.insertedCount === 1) {
@@ -66,7 +59,7 @@ router.get('/:userId', function(req, res) {
                     replaceId(user);
                     res.json(user);
                 } else {
-                    error(req, res, 404, `Invalid user ID: ${params.userId}`)
+                    error(req, res, 404, `Invalid user ID: ${params.userId}. There is no user with such ID in the database`);
                 }
             });
         }).catch(err => error(req, res, 404, 
@@ -84,25 +77,17 @@ router.put('/:userId', function(req, res) {
     indicative.validate(user, 
         { 
             id: 'required|regex:^[0-9a-f]{24}$',
-            userId: 'required|regex:^[0-9a-f]{24}$',
-            name: 'required|string|min:5',
+            name: 'required|string',
             username: 'required|string|min:2|max:15',
-            password: 'regex:^((?=.*\d)(?=.\W))[0-9a-zA-Z]{8,}$',
-            sex: 'regex:[m|f]',
-            role: 'regex:(user|admin)',
+            password: 'regex:^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]',
+            sex: 'regex:[mf]',
+            role: 'in:admin,user',
             imageUrl: 'url',
             description: 'string|max:512',
-            statusOfAcc: 'regex:(active|suspended|deactivated)'
+            statusOfAcc: 'in:active,suspended,deactivated'
      })
     .then(user => {
-        var currentdate = new Date(); 
-        var datetime = currentdate.getDate() + "/"
-                + (currentdate.getMonth()+1)  + "/" 
-                + currentdate.getFullYear() + " "  
-                + currentdate.getHours() + ":"  
-                + currentdate.getMinutes() + ":" 
-                + currentdate.getSeconds();
-        user.dateOfLastChange = datetime;
+        user.dateOfLastChange = currentDateAndTime();
         console.log("Updating user: ", user);
         user._id = new ObjectID(user.id);
         delete (user.id);
@@ -141,23 +126,23 @@ router.delete('/:userId', function(req, res) {
 router.get('/:userId/recipes', function(req, res) {
     const params = req.params;
     const db = req.app.locals.db;
+    console.log(params);
     // check whether the user exists first
-    indicative.validate(params, {userId: 'required|regex:^[0-9a-f]{24}$'}) 
+    indicative.validate(params, {userId: 'required|regex:^[0-9a-f]{24}$' })
         .then(() => {
+            console.log(params.userId);
             db.collection('users').findOne({_id: new ObjectID(params.userId)})
             .then(user => {
                 if(!user) {
-                    error(req, res, 404, `Invalid user ID: ${params.userId}`);
+                    error(req, res, 404, `Invalid user ID: ${params.userId}. There is no user with such ID in the database`);
                 }
             });
         }).catch(err => error(req, res, 404, 
             `Invalid user ID: ${params.userId}. Id should have 24 hexadecimal characters.`, err));
 
-    if (user) {
-        db.collection('recipes').find({"_id": params.userId}).toArray().then(recipes => {
-            res.json(recipes.map(a => replaceId(a)));
-        });
-    }
+    db.collection('recipes').find({userId: params.userId}).toArray().then(recipes => {
+        res.json(recipes.map(a => replaceId(a)));
+    });
 });
 
 // GET (read a recipe by user)
@@ -175,21 +160,19 @@ router.get('/:userId/recipes/:recipeId', function(req, res) {
         }).catch(err => error(req, res, 404, 
             `Invalid user ID: ${params.userId}. Id should have 24 hexadecimal characters.`, err));
 
-    if (user) {
-        indicative.validate(params, {recipeId: 'required|regex:^[0-9a-f]{24}$'})
-            .then(() => {
-                db.collection('recipes').findOne({_id: new ObjectID(params.recipeId), userId: new ObjectID(params.userId)})
-                .then(recipe => {
-                    if(recipe) {
-                        replaceId(recipe);
-                        res.json(recipe);
-                    } else {
-                        error(req, res, 404, `Invalid recipe ID: ${params.recipeId}`)
-                    }
-                });
-            }).catch(err => error(req, res, 404, 
-                `Invalid recipe ID: ${params.reicpeId}. Id should have 24 hexadecimal characters.`, err));
-    }
+    indicative.validate(params, {recipeId: 'required|regex:^[0-9a-f]{24}$'})
+        .then(() => {
+            db.collection('recipes').findOne({_id: new ObjectID(params.recipeId)})
+            .then(recipe => {
+                if(recipe) {
+                    replaceId(recipe);
+                    res.json(recipe);
+                } else {
+                    error(req, res, 404, `Invalid recipe ID: ${params.recipeId}`)
+                }
+            });
+        }).catch(err => error(req, res, 404, 
+            `Invalid recipe ID: ${params.recipeId}. Id should have 24 hexadecimal characters.`, err));
 });
 
 // POST (create a recipe for user)
@@ -207,40 +190,29 @@ router.post('/:userId/recipes', (req, res) => {
             });
         }).catch(err => error(req, res, 404, 
             `Invalid user ID: ${params.userId}. Id should have 24 hexadecimal characters.`, err));
-
-    if (user) {
-        indicative.validate(recipe, 
-            { 
-                id: 'regex:^[0-9a-f]{24}$',
-                userId: 'regex:^[0-9a-f]{24}$',
-                name: 'required|string|max:80',
-                shortDescr: 'required|max:256',
-                time: 'regex:[0-9]+',
-                imageUrl: 'url',
-                longDescr: 'string|max:2048'
-        })
-        .then(recipe => {
-            recipe.userId = params.userId;
-            var currentdate = new Date(); 
-            var datetime = currentdate.getDate() + "/"
-                    + (currentdate.getMonth()+1)  + "/" 
-                    + currentdate.getFullYear() + " "  
-                    + currentdate.getHours() + ":"  
-                    + currentdate.getMinutes() + ":" 
-                    + currentdate.getSeconds();
-            recipe.dateOfPubl = datetime;
-            recipe.dateOfLastChange = datetime;
-            console.log("Inserting recipe: ", recipe);
-            db.collection('recipes').insertOne(recipe).then(result => {
-                if(result.result.ok && result.insertedCount === 1) {
-                    replaceId(recipe);
-                    const uri = req.baseUrl + `/${userId}/recipes/` + recipe._id
-                    res.location(uri).status(201).json(recipe);
-                }
-            });
-        }).catch(err => error(req, res, 400, 
-            `Invalid recipe: ${util.inspect(err)}`, err));
-    }
+    
+    indicative.validate(recipe, 
+        {
+            name: 'required|string|max:80',
+            shortDescr: 'required|max:256',
+            time: 'regex:[0-9]+',
+            imageUrl: 'url',
+            longDescr: 'string|max:2048'
+    })
+    .then(recipe => {
+        recipe.userId = params.userId;
+        recipe.dateOfPubl = currentDateAndTime();
+        recipe.dateOfLastChange = recipe.dateOfPubl;
+        console.log("Inserting recipe: ", recipe);
+        db.collection('recipes').insertOne(recipe).then(result => {
+            if(result.result.ok && result.insertedCount === 1) {
+                replaceId(recipe);
+                const uri = req.baseUrl + `/${params.userId}/recipes/` + recipe._id
+                res.location(uri).status(201).json(recipe);
+            }
+        });
+    }).catch(err => error(req, res, 400, 
+        `Invalid recipe: ${util.inspect(err)}`, err));
 });
 
 // PUT (update recipe of user)
@@ -248,16 +220,20 @@ router.put('/:userId/recipes/:recipeId', (req, res) => {
     const db = req.app.locals.db;
     const params = req.params;
     const recipe = req.body;
-    if(params.userId !== user.id) {
-        error(req, res, 404, `User ID does not match: ${params.userId} vs. ${user.id} `)
-    }
-    if(params.recipeId !== recipe.id) {
-        error(req, res, 404, `Recipe ID does not match: ${params.recipeId} vs. ${recipe.id} `)
-    }
+
+    indicative.validate(params, {userId: 'required|regex:^[0-9a-f]{24}$'})
+        .then(() => {
+            db.collection('users').findOne({_id: new ObjectID(params.userId)})
+            .then(user => {
+                if(!user) {
+                    error(req, res, 404, `Invalid user ID: ${params.userId}`);
+                }
+            });
+        }).catch(err => error(req, res, 404, 
+            `Invalid user ID: ${params.userId}. Id should have 24 hexadecimal characters.`, err));
+    
     indicative.validate(recipe, 
-        { 
-            id: 'regex:^[0-9a-f]{24}$',
-            userId: 'regex:^[0-9a-f]{24}$',
+        {
             name: 'required|string|max:80',
             shortDescr: 'required|max:256',
             time: 'regex:[0-9]+',
@@ -266,17 +242,9 @@ router.put('/:userId/recipes/:recipeId', (req, res) => {
      })
     .then(recipe => {
         recipe.userId = params.userId;
-        var currentdate = new Date(); 
-        var datetime = currentdate.getDate() + "/"
-                + (currentdate.getMonth()+1)  + "/" 
-                + currentdate.getFullYear() + " "  
-                + currentdate.getHours() + ":"  
-                + currentdate.getMinutes() + ":" 
-                + currentdate.getSeconds();
-        user.dateOfLastChange = datetime;
+        recipe.dateOfLastChange = currentDateAndTime();
         console.log("Updating recipe: ", recipe);
-        recipe._id = new ObjectID(recipe.id);
-        delete (recipe.id);
+        recipe._id = new ObjectID(params.recipeId);
         db.collection('recipes').updateOne({ _id: recipe._id, userId: recipe.userId}, {"$set": recipe} )
         .then(result => {
             console.log("Recipe to update: ", recipe);
@@ -293,10 +261,21 @@ router.put('/:userId/recipes/:recipeId', (req, res) => {
 router.delete('/:userId/recipes/:recipeId', function(req, res) {
     const params = req.params;
     const db = req.app.locals.db;
+
+    indicative.validate(params, {userId: 'required|regex:^[0-9a-f]{24}$'})
+        .then(() => {
+            db.collection('users').findOne({_id: new ObjectID(params.userId)})
+            .then(user => {
+                if(!user) {
+                    error(req, res, 404, `Invalid user ID: ${params.userId}`);
+                }
+            });
+        }).catch(err => error(req, res, 404, 
+            `Invalid user ID: ${params.userId}. Id should have 24 hexadecimal characters.`, err));
     
     indicative.validate(params, {recipeId: 'required|regex:^[0-9a-f]{24}$'})
         .then(() => {
-            db.collection('recipes').findOneAndDelete({_id: new ObjectID(params.recipeId), userId: new ObjectID(params.userId)})
+            db.collection('recipes').findOneAndDelete({_id: new ObjectID(params.recipeId)})
             .then(({ value }) => {
                 if(value) {
                     replaceId(value);
