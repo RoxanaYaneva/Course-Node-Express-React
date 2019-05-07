@@ -126,11 +126,9 @@ router.delete('/:userId', function(req, res) {
 router.get('/:userId/recipes', function(req, res) {
     const params = req.params;
     const db = req.app.locals.db;
-    console.log(params);
     // check whether the user exists first
     indicative.validate(params, {userId: 'required|regex:^[0-9a-f]{24}$' })
         .then(() => {
-            console.log(params.userId);
             db.collection('users').findOne({_id: new ObjectID(params.userId)})
             .then(user => {
                 if(!user) {

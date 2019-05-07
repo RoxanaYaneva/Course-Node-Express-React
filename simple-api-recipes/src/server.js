@@ -11,7 +11,11 @@ const rootPath = path.normalize(__dirname);
 const app = express();
 
 app.set('app', path.join(rootPath, 'app'));
+
+// generates logs on every request being made
 app.use(logger('dev'));
+
+// extracts the entire body portion of an incoming request stream and exposes it on req.body
 app.use(bodyParser.json({limit: '20mb'}));
 
 app.use('/api/users', router);
@@ -26,15 +30,14 @@ app.use(function(err, req, res, next) {
     res.status(err.status || 500);
     res.json({
         message: err.message,
-        error: err.error || err | {}
+        error: err.error || err || {}
     });
 });
 
 const dburl = 'mongodb://localhost:27017/cooking';
 const port = 9000;
 
-MongoClient.connect(dburl, { useNewUrlParser: true }).then( db => {
-    // if (err) throw err;
+MongoClient.connect(dburl, { useNewUrlParser: true }).then(db => {
     console.log("Database connected!");
     var dbo = db.db('cooking');
     app.locals.db = dbo;
@@ -52,5 +55,5 @@ MongoClient.connect(dburl, { useNewUrlParser: true }).then( db => {
     });
 }).catch(err => { 
     console.error("Error: MongoDB not available. Check that it is started on port 27017.")
-    throw err
+    throw err;
 });
