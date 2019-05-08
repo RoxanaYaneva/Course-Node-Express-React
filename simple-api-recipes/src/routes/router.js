@@ -26,7 +26,7 @@ router.post('/', function (req, res) {
             name: 'required|string',
             username: 'required|string|min:2|max:15',
             password: 'regex:^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]',
-            sex: 'regex:[mf]',
+            sex: 'required|regex:[mf]',
             role: 'in:admin,user',
             imageUrl: 'url',
             description: 'string|max:512',
@@ -34,6 +34,13 @@ router.post('/', function (req, res) {
      })
     .then(user => {
         user.dateOfReg = currentDateAndTime();
+        if (!user.imageUrl) {
+            if (user.sex === 'f') {
+                user.imageUrl = 'http://wuf9.org/wp-content/themes/wuf9/img/default-female.jpg';
+            } else {
+                user.imageUrl = 'https://www.mastermindpromotion.com/wp-content/uploads/2015/02/facebook-default-no-profile-pic-300x300.jpg';
+            }
+        }
         user.dateOfLastChange = user.dateOfReg;
         console.log("Inserting user: ", user);
         db.collection('users').insertOne(user).then(result => {
@@ -80,7 +87,7 @@ router.put('/:userId', function(req, res) {
             name: 'required|string',
             username: 'required|string|min:2|max:15',
             password: 'regex:^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]',
-            sex: 'regex:[mf]',
+            sex: 'required|regex:[mf]',
             role: 'in:admin,user',
             imageUrl: 'url',
             description: 'string|max:512',
